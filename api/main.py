@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -19,6 +19,12 @@ class MeasurementIn(BaseModel):
 def health():
     return {"status": "UP"}
 
+@app.get('/jobs/{job_id}')
+def get_job(job_id: str):
+    if job_id not in jobs:
+        raise HTTPException(status_code = 404, detail='job not found')
+    return jobs[job_id]
+
 @app.post('/measurements', status_code = 202)
 def submit_measurements(body: MeasurementIn):
     job_id = 'job-' + uuid.uuid4().hex[:8]
@@ -32,5 +38,3 @@ def submit_measurements(body: MeasurementIn):
     jobs[job_id] = job
 
     return job
-    
-    
