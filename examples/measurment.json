@@ -1,0 +1,6 @@
+{
+    "source_host": "h1",
+    "target_host": "h2",
+    "metric": "latency",
+    "values_ms": [10, 11, 9, 45, 12]
+  }

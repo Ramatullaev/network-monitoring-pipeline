@@ -1,12 +1,12 @@
 import uuid
 
+import redis
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
 
-# "Память" сервера job_id -> данные задачи 
-jobs = {}
+r = redis.Redis(host='localhost', port = 6379, decode_responses=True)
 
 class MeasurementIn(BaseModel):
     source_host: str
@@ -14,16 +14,16 @@ class MeasurementIn(BaseModel):
     metric: str
     values_ms: list[float]
 
-
 @app.get("/health")
 def health():
     return {"status": "UP"}
 
 @app.get('/jobs/{job_id}')
 def get_job(job_id: str):
-    if job_id not in jobs:
+    job = r.hgetall('job:' + job_id)
+    if not job:
         raise HTTPException(status_code = 404, detail='job not found')
-    return jobs[job_id]
+    return job
 
 @app.post('/measurements', status_code = 202)
 def submit_measurements(body: MeasurementIn):
@@ -35,6 +35,6 @@ def submit_measurements(body: MeasurementIn):
         'measurement_id': measurement_id,
         'status': 'queued',
     }
-    jobs[job_id] = job
+    r.hset('job:' + job_id, mapping=job)
 
     return job
