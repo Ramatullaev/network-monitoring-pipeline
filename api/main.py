@@ -1,13 +1,23 @@
 import uuid
-
+import json
+import pika
 import redis
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
 
-r = redis.Redis(host='localhost', port = 6379, decode_responses=True)
+r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
+QUEUE_NAME = 'measurement.created'
+
+def publish(message):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+    channel = connection.channel()
+    channel.queue_declare(queue=QUEUE_NAME, durable=True)
+    channel.basic_publish(exchange='', routing_key=QUEUE_NAME, body=json.dumps(message))
+    connection.close()
+    
 class MeasurementIn(BaseModel):
     source_host: str
     target_host: str
@@ -36,5 +46,12 @@ def submit_measurements(body: MeasurementIn):
         'status': 'queued',
     }
     r.hset('job:' + job_id, mapping=job)
+
+    message = {
+        'job_id': job_id,
+        'measurement_id': measurement_id,
+        'measurement': body.model_dump(),
+    }
+    publish(message)
 
     return job
